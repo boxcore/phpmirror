@@ -8,11 +8,11 @@ if(!defined('ROOT')) define('ROOT', dirname(__FILE__).DS);    // 设定系统目
 require ROOT.'funcs/app.fn.php';
 $mimes = include(ROOT.'conf/mimes.conf.php');
 $conf = include(ROOT . 'conf/site_config.conf.php');
+$offset = 7*60*60*24; // cache 7 day
+// $offset = 10; // cache 30s
 
 
-
-$setting = null;
-
+$setting = $str = $is_gen_new = null;
 if(isset($_GET['s'])){
 	if(preg_match('#^//(([a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,6})/#is', $_GET['s'],$match)){
 		$domain = $match[1];
@@ -20,8 +20,8 @@ if(isset($_GET['s'])){
 		if(isset($conf[$domain])){
 			$conf_setting = $conf[$domain];
 		}else{
-			echo 'not such conf for '.$domain;
-			exit;
+			// echo 'not such conf for '.$domain;
+			// exit;
 		}
 	}
 
@@ -51,22 +51,30 @@ if(isset($_GET['s'])){
 
 
 		if( file_exists($static_file) ){
-			echo file_get_contents($static_file);
-		}else{
+			$static_time = filemtime($static_file);
+			$static_date = date('Y-m-d H:i:s',$static_time);
+
+			$time = time();
+			if($time - $static_time <= $offset){
+				$str = file_get_contents($static_file);
+				$is_gen_new = 1;
+			}
+
+		}
+
+		if(!$str){
 			$str = get_content($remote_file, null, $setting);
 			if($str >= 400){
-				echo "page error code: ".$str;
+				// echo "page error code: ".$str;
 			}else{
 
-				
 				mkdirs($static_info['dir']);
 
 				if(!empty($conf_setting['preg'])){
 					$str = preg_replace($conf_setting['preg']['patterns'], $conf_setting['preg']['replacements'],$str);
 				}
 				
-				file_put_contents($static_file,$str);
-				echo $str;
+				if($is_gen_new) file_put_contents($static_file,$str);
 			}
 			
 		}
@@ -75,4 +83,38 @@ if(isset($_GET['s'])){
 
 	
 
+}
+
+if($str){
+	// 一些缓存配置
+	header("Cache-Control: public");
+  	header("Pragma: cache");
+  	
+	$ExpStr = "Expires: ".gmdate("D, d M Y H:i:s", time() + $offset)." GMT";
+	header($ExpStr);
+
+	$md5 = md5($str);
+
+	/**
+	 * 启用etag后如果要启用session要这么处理：
+	 * session_cache_limiter('public');//设置session缓存
+	 * session_start();//读取session
+	 */
+	$ETag=$md5;
+	if(isset($_SERVER['HTTP_IF_NONE_MATCH']) && ($_SERVER['HTTP_IF_NONE_MATCH']==$ETag) ){
+		header('HTTP/1.1 304 Not Modified'); //返回304，告诉浏览器调用缓存
+		exit();
+	}else{
+		header('Etag:'.$ETag);
+		file_put_contents($static_file,$str);
+	};
+
+
+	// echo "/* test:".time()." & etag: {$ETag}  filemtime : {$static_date} */";
+	echo $str;
+
+}else{
+	header("HTTP/1.1 404 Not Found");  
+	header("Status: 404 Not Found");  
+	exit;
 }
