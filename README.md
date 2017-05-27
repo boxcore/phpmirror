@@ -7,6 +7,7 @@ phpMirror 主要给用户提供资源镜像下载，比如你想把资源文件 
 
 1. 修改 conf/site_config.conf.example.php 中配置对应的站点内容，保存为conf/site_config.conf.php
 2. 配置nginx 
+
 ```lua
 location / {
 	// code ...
