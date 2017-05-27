@@ -10,7 +10,16 @@ $mimes = include(ROOT.'conf/mimes.conf.php');
 $conf = include(ROOT . 'conf/site_config.conf.php');
 $offset = 7*60*60*24; // cache 7 day
 // $offset = 10; // cache 30s
-
+$allow_exts = array('ttf',
+					'ttc',
+					'otf',
+					'eot',
+					'woff',
+					'woff2',
+					'font.css',
+					'css',
+					'js',
+				);
 
 $setting = $str = $is_gen_new = null;
 if(isset($_GET['s'])){
@@ -20,8 +29,9 @@ if(isset($_GET['s'])){
 		if(isset($conf[$domain])){
 			$conf_setting = $conf[$domain];
 		}else{
-			// echo 'not such conf for '.$domain;
-			// exit;
+			// 无自定义配置文件
+			$conf_setting = $conf['default'];
+			$conf_setting['site'] = $domain;
 		}
 	}
 
@@ -29,7 +39,7 @@ if(isset($_GET['s'])){
 
 		$save_path = 'mirrors'.DS.$conf_setting['site'].DS;
 
-		$param = str_replace($conf_setting['site'], '', $_GET['s']);
+		$param = str_replace($conf_setting['site'].'/', '', $_GET['s']);
 		$param = str_replace('//', '/', $param);
 
 		$static_file = $save_path. $param;
@@ -39,6 +49,11 @@ if(isset($_GET['s'])){
 		$url_info    = get_url_ext($remote_file);
 		$remote_ext  = $url_info['ext'];
 
+
+		
+		if(in_array($remote_ext, $allow_exts)){
+			header('Access-Control-Allow-Origin: *');
+		}
 		if(isset($mimes[$remote_ext])){
 			if(is_array($mimes[$remote_ext])){
 				header("Content-type: ".$mimes[$remote_ext][0]);
@@ -46,7 +61,7 @@ if(isset($_GET['s'])){
 				header("Content-type: ".$mimes[$remote_ext]);
 			}
 		}else{
-			header("Content-type: text/plain");
+			header("Content-type: application/octet-stream");
 		}
 
 
@@ -63,9 +78,11 @@ if(isset($_GET['s'])){
 		}
 
 		if(!$str){
+			$setting['CURLOPT_USERAGENT'] = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.36';
 			$str = get_content($remote_file, null, $setting);
 			if($str >= 400){
-				// echo "page error code: ".$str;
+				unset($str);
+				// echo "page error code: ".$str;exit;
 			}else{
 
 				mkdirs($static_info['dir']);

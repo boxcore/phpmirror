@@ -1,3 +1,4 @@
 .log
 mirrors/*
 conf/site_config.conf.php
+.DS_Store
