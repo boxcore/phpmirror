@@ -78,7 +78,6 @@ function post_content($url, $cookie, $post, $setting=array()) {
 /**
  * 递归转换数组编码
  *
- * @author chunze.huang
  * @date   2017-05-07
  * @param  [type]     $arr     [description]
  * @param  [type]     $charset [description]
